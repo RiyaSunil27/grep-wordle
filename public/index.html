@@ -513,6 +513,147 @@
       color: var(--text-dim);
     }
 
+    /* ─── Header buttons group ───────────────────────────────── */
+    .header-btns { display: flex; gap: 8px; }
+
+    .btn-ghost {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      background: transparent;
+      border: 1px solid var(--border-hi);
+      border-radius: var(--radius);
+      padding: 8px 14px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      text-transform: lowercase;
+    }
+    .btn-ghost:hover { color: var(--cyan); border-color: var(--cyan); background: var(--cyan-dim); }
+    .btn-ghost:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+    /* ─── Live pattern explainer ─────────────────────────────── */
+    .pattern-explain {
+      display: none;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      padding: 0 0 10px 20px;
+      font-family: 'Courier New', Courier, monospace;
+    }
+    .pattern-explain.show { display: flex; }
+
+    .explain-flag {
+      font-size: 10px;
+      color: var(--yellow);
+      background: var(--yellow-dim);
+      border: 1px solid var(--yellow);
+      border-radius: 2px;
+      padding: 2px 7px;
+      letter-spacing: 0.03em;
+    }
+    .explain-chip {
+      font-size: 11px;
+      color: var(--text);
+      background: var(--surface-2);
+      border: 1px solid var(--border-hi);
+      border-radius: 2px;
+      padding: 3px 8px;
+      white-space: nowrap;
+    }
+    .explain-chip b { color: var(--cyan); font-weight: 700; }
+    .explain-arrow { color: var(--text-muted); font-size: 11px; }
+    .explain-warn { font-size: 11px; color: #f87171; padding: 3px 8px; }
+
+    /* ─── Suggestion (clue→grep) entries in log ──────────────── */
+    .suggest-head {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px;
+      color: var(--cyan);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .suggest-note { font-size: 10px; color: var(--text-muted); padding-left: 20px; margin-top: -8px; }
+    .suggest-row {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding-left: 20px;
+    }
+    .suggest-chip {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px;
+      color: var(--green);
+      background: var(--green-dim);
+      border: 1px solid var(--green);
+      border-radius: 2px;
+      padding: 4px 9px;
+      cursor: pointer;
+      align-self: flex-start;
+      transition: background 0.15s;
+    }
+    .suggest-chip:hover { background: rgba(16,217,160,0.32); }
+    .suggest-why { font-size: 10px; color: var(--text-dim); padding-left: 2px; }
+
+    /* ─── Cheat-sheet drawer ─────────────────────────────────── */
+    #guide-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(13,27,42,0.6);
+      backdrop-filter: blur(2px);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.25s;
+      z-index: 150;
+    }
+    #guide-backdrop.show { opacity: 1; pointer-events: all; }
+
+    #guide-drawer {
+      position: fixed; top: 0; right: 0; height: 100%;
+      width: 360px; max-width: 90vw;
+      background: var(--surface);
+      border-left: 1px solid var(--border-hi);
+      z-index: 160;
+      transform: translateX(100%);
+      transition: transform 0.25s ease;
+      display: flex; flex-direction: column;
+      overflow-y: auto;
+    }
+    #guide-drawer.show { transform: translateX(0); }
+
+    .guide-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; background: var(--surface-2);
+    }
+    .guide-title { font-size: 14px; font-weight: 700; letter-spacing: 0.04em; color: var(--text); }
+    .guide-close {
+      background: none; border: none; color: var(--text-dim);
+      font-size: 22px; cursor: pointer; line-height: 1; padding: 0 4px;
+    }
+    .guide-close:hover { color: var(--cyan); }
+
+    .guide-section { padding: 14px 20px; border-bottom: 1px solid var(--border); }
+    .guide-section h4 {
+      font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--text-dim); margin-bottom: 10px;
+    }
+    .guide-row {
+      display: flex; align-items: baseline; gap: 10px;
+      padding: 6px 8px; border-radius: 2px; cursor: pointer;
+      transition: background 0.12s;
+    }
+    .guide-row:hover { background: var(--surface-2); }
+    .guide-code {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px; color: var(--green);
+      background: var(--green-dim); border: 1px solid var(--border-hi);
+      border-radius: 2px; padding: 2px 7px; white-space: nowrap; flex-shrink: 0;
+      min-width: 92px;
+    }
+    .guide-desc { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
+    .guide-tip { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+
     /* ─── Responsive ─────────────────────────────────────────── */
     @media (max-width: 720px) {
       main {
@@ -537,7 +678,10 @@
       <div class="logo-wordle">WORDLE</div>
       <div class="tagline">Hunt with patterns. Guess with knowledge.</div>
     </div>
-    <button class="btn-new" id="btn-new">new game()</button>
+    <div class="header-btns">
+      <button class="btn-ghost" id="btn-guide">grep guide</button>
+      <button class="btn-new" id="btn-new">new game()</button>
+    </div>
   </header>
 
   <main>
@@ -577,6 +721,7 @@
       </div>
 
       <div class="terminal-input-area">
+        <div class="pattern-explain" id="pattern-explain"></div>
         <div class="terminal-prompt">
           <span class="prompt-sym">$</span>
           <input
@@ -588,6 +733,7 @@
             spellcheck="false"
             placeholder='grep "pattern"  or  word'
           >
+          <button class="btn-ghost" id="btn-hint" title="Turn your Wordle clues into grep patterns">💡 clue → grep</button>
         </div>
         <div class="input-hint" id="input-hint"></div>
       </div>
@@ -604,6 +750,35 @@
       <div class="status-dots" id="guess-dots"></div>
     </div>
   </div>
+
+  <div id="guide-backdrop"></div>
+  <aside id="guide-drawer" aria-label="grep cheat sheet">
+    <div class="guide-head">
+      <span class="guide-title">grep cheat sheet</span>
+      <button class="guide-close" id="guide-close" aria-label="close">×</button>
+    </div>
+
+    <div class="guide-section">
+      <p class="guide-tip">grep keeps only the words that <b>match your pattern</b>. Click any row to drop it into the input, then tweak it.</p>
+    </div>
+
+    <div class="guide-section" id="guide-anchors">
+      <h4>Position — where in the word</h4>
+    </div>
+    <div class="guide-section" id="guide-any">
+      <h4>Any letter — the dot</h4>
+    </div>
+    <div class="guide-section" id="guide-class">
+      <h4>Choices — square brackets</h4>
+    </div>
+    <div class="guide-section" id="guide-flags">
+      <h4>Flags — change how grep matches</h4>
+    </div>
+    <div class="guide-section">
+      <h4>Putting it together</h4>
+      <p class="guide-tip">A 5-letter word is 5 slots. Each dot = one slot. So <span style="color:var(--green)">^.a...</span> means "letter 2 is <b>a</b>, the rest anything". Count the dots to count the positions.</p>
+    </div>
+  </aside>
 
   <div id="toast"></div>
 
@@ -629,6 +804,7 @@
     let gameStatus = 'playing';
     let guessCount = 0;
     let probeCount = 0;
+    let currentGuesses = [];
 
     /* ── DOM refs ──────────────────────────────────────────── */
     const board      = document.getElementById('board');
@@ -774,6 +950,7 @@
       guessCount = session.guesses.length;
       probeCount = MAX_PROBES - session.probesLeft;
       gameStatus = session.status;
+      currentGuesses = session.guesses;
     }
 
     /* ── Terminal log ──────────────────────────────────────── */
@@ -923,6 +1100,7 @@
           renderDots(session.probesLeft, session.guessesLeft);
           guessCount = session.guesses.length;
           gameStatus = session.status;
+          currentGuesses = session.guesses;
           if (session.status !== 'playing') showEnd(session);
           if (session.status === 'won') animateWin(rowIndex);
         }, 5 * 180 + 50);
@@ -942,6 +1120,7 @@
       if (!val) {
         inputHint.textContent = '';
         inputHint.className = 'input-hint';
+        renderExplain('');
         clearPreview();
         return;
       }
@@ -949,8 +1128,10 @@
       if (val.startsWith('grep')) {
         inputHint.textContent = 'probe — press Enter to run grep';
         inputHint.className = 'input-hint hint-grep';
+        renderExplain(val);
         clearPreview();
       } else if (/^[a-z]{1,5}$/i.test(val)) {
+        renderExplain('');
         inputHint.textContent = val.length === 5
           ? 'guess — press Enter to submit'
           : `${5 - val.length} more letter${5 - val.length !== 1 ? 's' : ''}`;
@@ -959,6 +1140,7 @@
       } else {
         inputHint.textContent = 'type grep "pattern" or a 5-letter word';
         inputHint.className = 'input-hint';
+        renderExplain('');
         clearPreview();
       }
     });
@@ -973,6 +1155,7 @@
       cmdInput.value = '';
       inputHint.textContent = '';
       inputHint.className = 'input-hint';
+      renderExplain('');
       clearPreview();
 
       if (val.startsWith('grep')) {
@@ -1022,6 +1205,277 @@
       if (/^[a-z]$/i.test(e.key) && !e.ctrlKey && !e.metaKey) {
         cmdInput.focus();
       }
+    });
+
+    /* ════════════════════════════════════════════════════════ */
+    /* ── Teaching layer: explainer, cheat sheet, clue→grep ─── */
+    /* ════════════════════════════════════════════════════════ */
+
+    const patternExplain = document.getElementById('pattern-explain');
+
+    /* Insert a command into the input, fire live explain, focus. */
+    function insertCmd(cmd) {
+      cmdInput.value = cmd;
+      cmdInput.dispatchEvent(new Event('input'));
+      cmdInput.focus();
+    }
+
+    /* --- 1. Live pattern explainer ----------------------------- */
+
+    // Split "grep [flags] pattern" into { flags:[], pat:'' }, mirroring the server.
+    function parseGrepInput(input) {
+      let s = input.trim();
+      if (s.startsWith('grep')) s = s.slice(4).trim();
+      const flags = [];
+      const flagMatch = s.match(/^(-[viEe]+\s+)*/);
+      if (flagMatch && flagMatch[0]) {
+        for (const m of flagMatch[0].matchAll(/-([viEe]+)/g)) flags.push(...m[1].split(''));
+        s = s.slice(flagMatch[0].length).trim();
+      }
+      if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+        s = s.slice(1, -1);
+      }
+      return { flags: [...new Set(flags)], pat: s };
+    }
+
+    // Turn a regex string into a list of plain-English chip strings.
+    function describePattern(pat) {
+      const chips = [];
+      let i = 0, dots = 0;
+      const flushDots = () => {
+        if (dots === 1) chips.push('any 1 letter');
+        else if (dots > 1) chips.push(`any ${dots} letters`);
+        dots = 0;
+      };
+      while (i < pat.length) {
+        const c = pat[i];
+        if (c === '.' && pat[i + 1] === '*') { flushDots(); chips.push('any letters (0+)'); i += 2; continue; }
+        if (c === '.') { dots++; i++; continue; }
+        flushDots();
+        if (c === '^') { chips.push('▸ word starts'); i++; continue; }
+        if (c === '$') { chips.push('word ends ◂'); i++; continue; }
+        if (c === '[') {
+          let j = pat.indexOf(']', i + 1);
+          if (j === -1) j = pat.length - 1;
+          let inner = pat.slice(i + 1, j), neg = false;
+          if (inner[0] === '^') { neg = true; inner = inner.slice(1); }
+          const letters = inner.split('').join(',');
+          chips.push(neg ? `any letter EXCEPT ${letters}` : `one of: ${letters}`);
+          i = j + 1; continue;
+        }
+        if (c === '*') { chips.push('(0+ of previous)'); i++; continue; }
+        if (c === '+') { chips.push('(1+ of previous)'); i++; continue; }
+        if (c === '?') { chips.push('(previous optional)'); i++; continue; }
+        if (c === '|') { chips.push('OR'); i++; continue; }
+        if (c === '(' || c === ')') { chips.push(c); i++; continue; }
+        if (c === '{') {
+          const j = pat.indexOf('}', i);
+          if (j !== -1) { chips.push(`repeated ${pat.slice(i + 1, j)}`); i = j + 1; continue; }
+        }
+        if (c === '\\') { if (pat[i + 1]) { chips.push(`literal "${pat[i + 1]}"`); i += 2; continue; } }
+        chips.push(`"${c}"`); i++;
+      }
+      flushDots();
+      return chips;
+    }
+
+    const FLAG_TEXT = {
+      v: 'INVERT (-v): keep words that do NOT match',
+      i: 'ignore case (-i)',
+      E: 'extended regex (-E)',
+      e: 'pattern (-e)',
+    };
+
+    function renderExplain(input) {
+      patternExplain.innerHTML = '';
+      if (!input || !input.startsWith('grep')) { patternExplain.classList.remove('show'); return; }
+      const { flags, pat } = parseGrepInput(input);
+      if (!pat) { patternExplain.classList.remove('show'); return; }
+
+      patternExplain.classList.add('show');
+
+      for (const f of flags) {
+        if (!FLAG_TEXT[f]) continue;
+        const el = document.createElement('span');
+        el.className = 'explain-flag';
+        el.textContent = FLAG_TEXT[f];
+        patternExplain.appendChild(el);
+      }
+
+      let chips;
+      try { chips = describePattern(pat); } catch (_) { chips = null; }
+      if (!chips || !chips.length) {
+        const w = document.createElement('span');
+        w.className = 'explain-warn';
+        w.textContent = "can't read that pattern yet — try the grep guide";
+        patternExplain.appendChild(w);
+        return;
+      }
+      chips.forEach((txt, idx) => {
+        if (idx > 0) {
+          const arr = document.createElement('span');
+          arr.className = 'explain-arrow'; arr.textContent = '→';
+          patternExplain.appendChild(arr);
+        }
+        const el = document.createElement('span');
+        el.className = 'explain-chip';
+        el.textContent = txt;
+        patternExplain.appendChild(el);
+      });
+    }
+
+    /* --- 2. Cheat-sheet drawer --------------------------------- */
+
+    const CHEAT = {
+      'guide-anchors': [
+        ['^a....', "word starts with 'a'"],
+        ['....e$', "word ends with 'e'"],
+        ['^a...e$', "starts 'a', ends 'e'"],
+        ['^..a..', "3rd letter is 'a'"],
+      ],
+      'guide-any': [
+        ['.', 'any single letter (one slot)'],
+        ['^.....$', 'exactly 5 letters'],
+        ['.*tion', "has 'tion' somewhere"],
+      ],
+      'guide-class': [
+        ['^[aeiou]', 'starts with a vowel'],
+        ['[^aeiou]', 'a letter that is NOT a vowel'],
+        ['^[a-m]', 'starts with a–m'],
+        ['^..[rst]', '3rd letter is r, s, or t'],
+      ],
+      'guide-flags': [
+        ['-v "e"', "words with NO 'e' in them"],
+        ['-i "^A"', "starts with 'a' (any case)"],
+        ['-E "ab|cd"', "has 'ab' OR 'cd' (-E for |)"],
+      ],
+    };
+
+    function buildCheatSheet() {
+      for (const [sectionId, rows] of Object.entries(CHEAT)) {
+        const section = document.getElementById(sectionId);
+        for (const [code, desc] of rows) {
+          const row = document.createElement('div');
+          row.className = 'guide-row';
+          const codeEl = document.createElement('span');
+          codeEl.className = 'guide-code';
+          codeEl.textContent = code;
+          const descEl = document.createElement('span');
+          descEl.className = 'guide-desc';
+          descEl.textContent = desc;
+          row.appendChild(codeEl);
+          row.appendChild(descEl);
+          const fullCmd = code.startsWith('-') ? `grep ${code}` : `grep "${code}"`;
+          row.addEventListener('click', () => {
+            insertCmd(fullCmd);
+            closeGuide();
+          });
+          section.appendChild(row);
+        }
+      }
+    }
+
+    const guideDrawer   = document.getElementById('guide-drawer');
+    const guideBackdrop = document.getElementById('guide-backdrop');
+    function openGuide()  { guideDrawer.classList.add('show'); guideBackdrop.classList.add('show'); }
+    function closeGuide() { guideDrawer.classList.remove('show'); guideBackdrop.classList.remove('show'); cmdInput.focus(); }
+
+    document.getElementById('btn-guide').addEventListener('click', openGuide);
+    document.getElementById('guide-close').addEventListener('click', closeGuide);
+    guideBackdrop.addEventListener('click', closeGuide);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeGuide(); });
+
+    buildCheatSheet();
+
+    /* --- 3. Clue → grep (turn Wordle feedback into patterns) --- */
+
+    // From the guesses so far, derive grep commands that encode what we know.
+    function buildClueGreps(guesses) {
+      const pos = Array(5).fill(null);   // green letter locked at each position
+      const notAt = {};                  // letter -> Set of positions it can't be (yellow)
+      const present = new Set();          // letters known to be in the word
+      const out = [];
+
+      for (const { word, colors } of guesses) {
+        for (let i = 0; i < 5; i++) {
+          const ch = word[i], col = colors[i];
+          if (col === 'green') { pos[i] = ch; present.add(ch); }
+          else if (col === 'yellow') { present.add(ch); (notAt[ch] = notAt[ch] || new Set()).add(i); }
+        }
+      }
+      // absent: gray letters that never showed up as green/yellow anywhere
+      const absent = new Set();
+      for (const { word, colors } of guesses) {
+        for (let i = 0; i < 5; i++) {
+          if (colors[i] === 'absent' && !present.has(word[i])) absent.add(word[i]);
+        }
+      }
+
+      const greenSet = new Set(pos.filter(Boolean));
+
+      if (pos.some(Boolean)) {
+        out.push({ cmd: `grep "^${pos.map(x => x || '.').join('')}"`,
+                   why: 'green letters, locked to their positions' });
+      }
+      for (const ch of present) {
+        if (!greenSet.has(ch)) out.push({ cmd: `grep "${ch}"`, why: `'${ch}' is in the word (yellow) — keep words that contain it` });
+      }
+      for (const ch of Object.keys(notAt)) {
+        for (const i of notAt[ch]) {
+          const p = Array.from({ length: 5 }, (_, k) => k === i ? ch : '.').join('');
+          out.push({ cmd: `grep -v "^${p}"`, why: `'${ch}' is NOT at position ${i + 1} — drop words with it there` });
+        }
+      }
+      for (const ch of absent) {
+        out.push({ cmd: `grep -v "${ch}"`, why: `'${ch}' is not in the word (gray) — drop words containing it` });
+      }
+      return out;
+    }
+
+    function renderSuggestions(suggestions) {
+      if (logEmpty && logEmpty.parentNode) logEmpty.remove();
+
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+
+      const head = document.createElement('div');
+      head.className = 'suggest-head';
+      head.textContent = '💡 grep for what you know so far';
+      entry.appendChild(head);
+
+      const note = document.createElement('div');
+      note.className = 'suggest-note';
+      note.textContent = 'each clue becomes one grep · click to load it · these are just tips, running one still costs a probe';
+      entry.appendChild(note);
+
+      for (const s of suggestions) {
+        const row = document.createElement('div');
+        row.className = 'suggest-row';
+        const chip = document.createElement('div');
+        chip.className = 'suggest-chip';
+        chip.textContent = s.cmd;
+        chip.addEventListener('click', () => insertCmd(s.cmd));
+        const why = document.createElement('div');
+        why.className = 'suggest-why';
+        why.textContent = s.why;
+        row.appendChild(chip);
+        row.appendChild(why);
+        entry.appendChild(row);
+      }
+
+      const divider = document.createElement('div');
+      divider.className = 'log-divider';
+      termLog.appendChild(entry);
+      termLog.appendChild(divider);
+      termLog.scrollTop = termLog.scrollHeight;
+    }
+
+    document.getElementById('btn-hint').addEventListener('click', () => {
+      if (gameStatus !== 'playing') { showToast('Start a new game first'); return; }
+      if (!currentGuesses.length) { showToast('Make a guess first — then I can turn your clues into grep'); return; }
+      const suggestions = buildClueGreps(currentGuesses);
+      if (!suggestions.length) { showToast('No solid clues yet — try another guess'); return; }
+      renderSuggestions(suggestions);
     });
 
     /* ── Boot ──────────────────────────────────────────────── */
