@@ -38,7 +38,9 @@
         linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
       background-size: 28px 28px;
       color: var(--text);
-      min-height: 100vh;
+      height: 100vh;
+      min-height: 0;
+      overflow: hidden;          /* cap the whole game at screen height */
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -107,8 +109,11 @@
       padding: 20px 24px 24px;
       display: grid;
       grid-template-columns: 320px 1fr;
+      grid-template-rows: minmax(0, 1fr);  /* bound the row so panels scroll instead of growing */
       gap: 16px;
       flex: 1;
+      min-height: 0;            /* let grid children shrink + scroll inside */
+      overflow: hidden;
     }
 
     /* ─── Board panel ────────────────────────────────────────── */
@@ -116,6 +121,8 @@
       display: flex;
       flex-direction: column;
       gap: 20px;
+      min-height: 0;
+      overflow-y: auto;
     }
 
     .panel-label {
@@ -235,7 +242,8 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      min-height: 520px;
+      min-height: 0;            /* fill the column; log scrolls internally */
+      height: 100%;
     }
 
     .terminal-head {
@@ -286,11 +294,21 @@
       gap: 14px;
       min-height: 0;
       scroll-behavior: smooth;
+      scrollbar-width: thin;                 /* Firefox */
+      scrollbar-color: var(--border-hi) transparent;
     }
 
-    .terminal-log::-webkit-scrollbar { width: 4px; }
-    .terminal-log::-webkit-scrollbar-track { background: transparent; }
-    .terminal-log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    /* entries keep their natural height so the log overflows + scrolls
+       (without this, flex children shrink to fit and it never scrolls) */
+    .terminal-log > * { flex-shrink: 0; }
+
+    .terminal-log::-webkit-scrollbar { width: 10px; }
+    .terminal-log::-webkit-scrollbar-track { background: var(--ground); }
+    .terminal-log::-webkit-scrollbar-thumb {
+      background: var(--border-hi); border-radius: 5px;
+      border: 2px solid var(--surface);
+    }
+    .terminal-log::-webkit-scrollbar-thumb:hover { background: var(--cyan); }
 
     .log-empty {
       color: var(--text-dim);
@@ -299,36 +317,51 @@
       line-height: 1.7;
     }
 
-    .log-entry { display: flex; flex-direction: column; gap: 5px; }
+    /* ─── Probe entry = accordion ────────────────────────────── */
+    .log-entry {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface-2);
+      overflow: hidden;
+    }
 
-    .log-cmd {
+    .log-head {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px;
       font-family: 'Courier New', Courier, monospace;
       font-size: 13px;
-      color: var(--text);
-      display: flex;
-      gap: 8px;
-      align-items: baseline;
+      cursor: pointer;
+      user-select: none;
     }
+    .log-head:hover { background: var(--surface); }
+    .log-head .prompt { color: var(--cyan); flex-shrink: 0; }
+    .log-head .cmd { color: var(--text); flex: 1; word-break: break-all; }
+    .log-head.no-body { cursor: default; }
+    .log-head.no-body:hover { background: transparent; }
 
-    .log-cmd .prompt { color: var(--cyan); flex-shrink: 0; }
-
-    .log-result {
-      font-family: 'Courier New', Courier, monospace;
-      font-size: 12px;
-      padding-left: 20px;
-      line-height: 1.6;
+    .log-badge {
+      font-size: 11px; padding: 1px 8px; border-radius: 10px;
+      white-space: nowrap; flex-shrink: 0;
     }
+    .log-badge.ok  { color: var(--green);  background: var(--green-dim);  }
+    .log-badge.few { color: var(--yellow); background: var(--yellow-dim); }
+    .log-badge.nil { color: #f87171;       background: rgba(248,113,113,0.15); }
 
-    .log-count-ok  { color: var(--green);  }
-    .log-count-few { color: var(--yellow); }
-    .log-count-nil { color: #f87171; }
+    .chevron { color: var(--text-muted); font-size: 10px; transition: transform 0.18s; flex-shrink: 0; }
+    .log-entry.open .chevron { transform: rotate(90deg); }
 
+    .log-body { max-height: 0; overflow: hidden; transition: max-height 0.25s ease; }
+    .log-entry.open .log-body { max-height: 3000px; overflow: hidden; }  /* expand fully, no inner scroll */
     .log-words {
       color: var(--text-dim);
       word-break: break-all;
-      padding-left: 20px;
+      padding: 0 10px 9px 22px;
       font-size: 11px;
+      line-height: 1.7;
     }
+    .suggest-body { padding: 4px 12px 11px; display: flex; flex-direction: column; gap: 7px; }
+    .suggest-body .suggest-note { padding-left: 0; margin-top: 0; }
+    .suggest-body .suggest-row { padding-left: 0; }
 
     .log-divider {
       height: 1px;
@@ -391,7 +424,9 @@
       display: flex;
       gap: 24px;
       align-items: center;
+      flex-shrink: 0;
     }
+    header { flex-shrink: 0; }
 
     .status-group {
       display: flex;
@@ -654,7 +689,123 @@
     .guide-desc { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
     .guide-tip { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
 
+    /* ─── Run HUD (timer / score / solved) ───────────────────── */
+    .hud { display: flex; align-items: center; gap: 18px; }
+    .hud-stat { display: flex; flex-direction: column; align-items: center; line-height: 1; gap: 4px; }
+    .hud-num {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 22px; font-weight: 700; color: var(--text);
+    }
+    .hud-num.timer { color: var(--cyan); }
+    .hud-num.timer.low { color: #f87171; }
+    .hud-label { font-size: 8px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-dim); }
+    .hud-name {
+      font-family: 'Courier New', Courier, monospace; font-size: 12px;
+      color: var(--green); padding: 4px 10px; border: 1px solid var(--border-hi);
+      border-radius: var(--radius); background: var(--green-dim);
+    }
+    .hud.hidden, .header-btns .run-only.hidden { display: none; }
+
+    /* ─── Wider 3-column layout with leaderboard ─────────────── */
+    main { grid-template-columns: 324px 1fr 220px; }
+    .board-panel { overflow-x: hidden; }
+
+    /* ─── Leaderboard panel ──────────────────────────────────── */
+    .leaderboard-panel {
+      display: flex; flex-direction: column; gap: 10px;
+      min-height: 0;
+    }
+    .lb-list { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; min-height: 0; }
+    .lb-row {
+      display: grid; grid-template-columns: 22px 1fr auto;
+      gap: 8px; align-items: baseline;
+      padding: 6px 8px; border-radius: 2px;
+      font-family: 'Courier New', Courier, monospace; font-size: 12px;
+      border: 1px solid transparent;
+    }
+    .lb-row:nth-child(odd) { background: var(--surface); }
+    .lb-row.me { border-color: var(--cyan); background: var(--cyan-dim); }
+    .lb-rank { color: var(--text-muted); }
+    .lb-row:nth-child(1) .lb-rank { color: var(--yellow); font-weight: 700; }
+    .lb-name { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lb-score { color: var(--green); font-weight: 700; }
+    .lb-empty { font-size: 11px; color: var(--text-muted); font-family: 'Courier New', monospace; line-height: 1.6; }
+    .lb-sub { font-size: 9px; color: var(--text-muted); letter-spacing: 0.04em; }
+
+    /* ─── Skip button ────────────────────────────────────────── */
+    .btn-skip {
+      font-family: 'Courier New', Courier, monospace; font-size: 11px;
+      color: var(--yellow); background: var(--yellow-dim);
+      border: 1px solid var(--yellow); border-radius: var(--radius);
+      padding: 7px 12px; cursor: pointer; white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .btn-skip:hover { background: rgba(245,158,11,0.3); }
+
+    /* ─── Reveal flash (word ended → next) ───────────────────── */
+    #reveal {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%,-50%) scale(0.9);
+      background: var(--surface-2); border: 1px solid var(--border-hi);
+      border-radius: 6px; padding: 22px 34px; text-align: center;
+      z-index: 180; opacity: 0; pointer-events: none;
+      transition: opacity 0.18s, transform 0.18s;
+    }
+    #reveal.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+    .reveal-tag { font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
+    .reveal-tag.ok { color: var(--green); }
+    .reveal-tag.miss { color: #f87171; }
+    .reveal-word {
+      font-family: 'Courier New', Courier, monospace; font-size: 30px; font-weight: 700;
+      letter-spacing: 0.18em; text-transform: uppercase; color: var(--text);
+    }
+    .reveal-pts { margin-top: 8px; font-size: 13px; color: var(--cyan); font-family: 'Courier New', monospace; }
+
+    /* ─── Login overlay ──────────────────────────────────────── */
+    #login-overlay {
+      position: fixed; inset: 0; z-index: 250;
+      background: rgba(13,27,42,0.94);
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity 0.3s;
+    }
+    #login-overlay.hidden { opacity: 0; pointer-events: none; }
+    .login-card {
+      background: var(--surface-2); border: 1px solid var(--border-hi);
+      border-radius: 6px; padding: 40px 44px; max-width: 420px; width: 90%;
+      display: flex; flex-direction: column; gap: 16px; text-align: center;
+    }
+    .login-card h2 { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+    .login-card p { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+    .login-rules { font-size: 11px; color: var(--text-muted); text-align: left; line-height: 1.7; }
+    .login-rules b { color: var(--cyan); }
+    #name-input {
+      font-family: 'Courier New', Courier, monospace; font-size: 16px;
+      background: var(--ground); border: 1px solid var(--border-hi);
+      border-radius: var(--radius); color: var(--text); padding: 12px 14px; outline: none;
+    }
+    #name-input:focus { border-color: var(--cyan); }
+    .login-btn {
+      font-family: 'Courier New', Courier, monospace; font-size: 15px; font-weight: 700;
+      color: #001a12; background: var(--green); border: none; border-radius: var(--radius);
+      padding: 13px; cursor: pointer; letter-spacing: 0.04em;
+    }
+    .login-btn:hover { filter: brightness(1.1); }
+
+    .end-rank { font-size: 14px; color: var(--text-dim); }
+    .end-board {
+      display: flex; flex-direction: column; gap: 2px; width: 100%;
+      margin-top: 4px; max-height: 220px; overflow-y: auto;
+    }
+
     /* ─── Responsive ─────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      /* stacked layout needs the page to scroll, not clip */
+      body { height: auto; min-height: 100vh; overflow: auto; }
+      main { grid-template-columns: 1fr; grid-template-rows: auto; overflow: visible; }
+      .board-panel, .leaderboard-panel { overflow: visible; }
+      .terminal-panel { min-height: 420px; }
+      .leaderboard-panel { order: 3; }
+    }
     @media (max-width: 720px) {
       main {
         grid-template-columns: 1fr;
@@ -663,6 +814,7 @@
 
       .terminal-panel { min-height: 360px; }
       .tile { width: 48px; height: 48px; font-size: 20px; }
+      .hud { gap: 12px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -676,11 +828,20 @@
     <div class="logo">
       <div class="logo-grep">$ grep</div>
       <div class="logo-wordle">WORDLE</div>
-      <div class="tagline">Hunt with patterns. Guess with knowledge.</div>
+      <div class="tagline">Solve as many as you can in 5:00.</div>
     </div>
+
+    <div class="hud hidden" id="hud">
+      <span class="hud-name" id="hud-name"></span>
+      <div class="hud-stat"><span class="hud-num timer" id="hud-timer">5:00</span><span class="hud-label">time</span></div>
+      <div class="hud-stat"><span class="hud-num" id="hud-score">0</span><span class="hud-label">score</span></div>
+      <div class="hud-stat"><span class="hud-num" id="hud-solved">0</span><span class="hud-label">solved</span></div>
+    </div>
+
     <div class="header-btns">
       <button class="btn-ghost" id="btn-guide">grep guide</button>
-      <button class="btn-new" id="btn-new">new game()</button>
+      <button class="btn-ghost run-only hidden" id="btn-end">end run</button>
+      <button class="btn-new" id="btn-new">new run()</button>
     </div>
   </header>
 
@@ -706,7 +867,7 @@
           <div class="dot dot-green"></div>
           <span class="terminal-title">probe terminal</span>
         </div>
-        <div class="probe-counter">probes: <span id="probe-count">8</span>/8</div>
+        <div class="probe-counter">probes: <span id="probe-count">∞</span></div>
       </div>
 
       <div class="terminal-log" id="terminal-log">
@@ -734,20 +895,31 @@
             placeholder='grep "pattern"  or  word'
           >
           <button class="btn-ghost" id="btn-hint" title="Turn your Wordle clues into grep patterns">💡 clue → grep</button>
+          <button class="btn-skip" id="btn-skip" title="Give up on this word, reveal it, move on">skip ⏭</button>
         </div>
         <div class="input-hint" id="input-hint"></div>
+      </div>
+    </div>
+
+    <!-- Far right: leaderboard -->
+    <div class="leaderboard-panel">
+      <div>
+        <div class="panel-label">Leaderboard</div>
+        <div class="lb-sub">top scores · 5-min runs</div>
+      </div>
+      <div class="lb-list" id="lb-list">
+        <div class="lb-empty">No runs yet.<br>Be the first!</div>
       </div>
     </div>
   </main>
 
   <div class="status-bar">
     <div class="status-group">
-      <span class="status-label">Probes</span>
-      <div class="status-dots" id="probe-dots"></div>
+      <span class="status-label">This word — guesses</span>
+      <div class="status-dots" id="guess-dots"></div>
     </div>
     <div class="status-group">
-      <span class="status-label">Guesses</span>
-      <div class="status-dots" id="guess-dots"></div>
+      <span class="status-label" id="word-counter" style="color:var(--text-muted)"></span>
     </div>
   </div>
 
@@ -782,42 +954,73 @@
 
   <div id="toast"></div>
 
+  <div id="reveal">
+    <div class="reveal-tag" id="reveal-tag"></div>
+    <div class="reveal-word" id="reveal-word"></div>
+    <div class="reveal-pts" id="reveal-pts"></div>
+  </div>
+
+  <div id="login-overlay">
+    <div class="login-card">
+      <h2>$ grep WORDLE</h2>
+      <p>5-minute sprint. Solve as many 5-letter words as you can. Use grep to narrow the field, then guess.</p>
+      <div class="login-rules">
+        Scoring per solved word: <b>100</b> + <b>20</b> × unused guesses (max <b>200</b>).<br>
+        Probes are unlimited — practice your grep freely.<br>
+        Skip or fail a word: it's revealed, no points, on to the next.
+      </div>
+      <input type="text" id="name-input" maxlength="20" placeholder="enter your name" autocomplete="off" spellcheck="false">
+      <button class="login-btn" id="login-btn">start →</button>
+    </div>
+  </div>
+
   <div id="end-overlay">
     <div class="end-card">
-      <div class="end-emoji" id="end-emoji"></div>
-      <div class="end-title" id="end-title"></div>
-      <div class="end-word" id="end-word"></div>
-      <div class="end-stats" id="end-stats"></div>
+      <div class="end-emoji" id="end-emoji">⏱</div>
+      <div class="end-title" id="end-title">Time!</div>
       <div class="end-score" id="end-score"></div>
+      <div class="end-stats" id="end-stats"></div>
+      <div class="end-rank" id="end-rank"></div>
+      <div class="panel-label" style="margin-top:6px">Leaderboard</div>
+      <div class="end-board" id="end-board"></div>
       <button class="btn-new" id="btn-new-end" style="margin-top:8px;font-size:14px;padding:12px 24px;">
-        play again
+        new run
       </button>
     </div>
   </div>
 
   <script>
     const MAX_GUESSES = 6;
-    const MAX_PROBES  = 8;
     const KEY_ROWS    = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
 
-    let sessionId  = null;
-    let gameStatus = 'playing';
-    let guessCount = 0;
-    let probeCount = 0;
-    let currentGuesses = [];
+    /* ── Run state ─────────────────────────────────────────── */
+    let token       = null;     // auth token (name-only)
+    let playerName  = null;
+    let runId       = null;
+    let gameStatus  = 'idle';   // idle | playing | transitioning | over
+    let guessCount  = 0;        // guesses on the current word
+    let currentGuesses = [];     // for the clue→grep hint
+    let deadline    = 0;        // ms epoch when the run ends
+    let timerInt    = null;
 
     /* ── DOM refs ──────────────────────────────────────────── */
     const board      = document.getElementById('board');
     const letterBank = document.getElementById('letter-bank');
     const termLog    = document.getElementById('terminal-log');
-    const logEmpty   = document.getElementById('log-empty');
+    let   logEmpty   = document.getElementById('log-empty');
     const cmdInput   = document.getElementById('cmd-input');
     const inputHint  = document.getElementById('input-hint');
-    const probeDots  = document.getElementById('probe-dots');
     const guessDots  = document.getElementById('guess-dots');
     const probeCount_el = document.getElementById('probe-count');
     const toast      = document.getElementById('toast');
     const endOverlay = document.getElementById('end-overlay');
+    const loginOverlay = document.getElementById('login-overlay');
+    const reveal     = document.getElementById('reveal');
+    const hud        = document.getElementById('hud');
+    const hudTimer   = document.getElementById('hud-timer');
+    const hudScore   = document.getElementById('hud-score');
+    const hudSolved  = document.getElementById('hud-solved');
+    const wordCounter = document.getElementById('word-counter');
 
     /* ── Board init ────────────────────────────────────────── */
     function initBoard() {
@@ -853,19 +1056,20 @@
     }
 
     function initDots() {
-      probeDots.innerHTML = '';
       guessDots.innerHTML = '';
-      for (let i = 0; i < MAX_PROBES; i++) {
-        const d = document.createElement('div');
-        d.className = 'sdot probe-active';
-        d.id = `pdot-${i}`;
-        probeDots.appendChild(d);
-      }
       for (let i = 0; i < MAX_GUESSES; i++) {
         const d = document.createElement('div');
         d.className = 'sdot guess-active';
         d.id = `gdot-${i}`;
         guessDots.appendChild(d);
+      }
+    }
+
+    // Reflect how many guesses are used on the *current* word.
+    function renderGuessDots(used) {
+      for (let i = 0; i < MAX_GUESSES; i++) {
+        const d = document.getElementById(`gdot-${i}`);
+        if (d) d.className = 'sdot ' + (i < used ? 'guess-used' : 'guess-active');
       }
     }
 
@@ -931,74 +1135,70 @@
       }
     }
 
-    function renderDots(probesLeft, guessesLeft) {
-      for (let i = 0; i < MAX_PROBES; i++) {
-        const d = document.getElementById(`pdot-${i}`);
-        if (d) d.className = 'sdot ' + (i < (MAX_PROBES - probesLeft) ? 'probe-used' : 'probe-active');
-      }
-      for (let i = 0; i < MAX_GUESSES; i++) {
-        const d = document.getElementById(`gdot-${i}`);
-        if (d) d.className = 'sdot ' + (i < (MAX_GUESSES - guessesLeft) ? 'guess-used' : 'guess-active');
-      }
-      probeCount_el.textContent = probesLeft;
-    }
-
-    function updateState(session) {
-      renderGuesses(session.guesses);
-      renderLetters(session.guesses);
-      renderDots(session.probesLeft, session.guessesLeft);
-      guessCount = session.guesses.length;
-      probeCount = MAX_PROBES - session.probesLeft;
-      gameStatus = session.status;
-      currentGuesses = session.guesses;
+    // Render a fresh word board (used at run start and after each advance).
+    function loadWord(word) {
+      initBoard();
+      initLetterBank();
+      renderGuessDots(0);
+      renderGuesses(word.guesses);
+      renderLetters(word.guesses);
+      guessCount = word.guesses.length;
+      currentGuesses = word.guesses;
+      gameStatus = 'playing';
     }
 
     /* ── Terminal log ──────────────────────────────────────── */
     function addProbeEntry(probe) {
-      if (logEmpty) logEmpty.remove();
+      if (logEmpty && logEmpty.parentNode) logEmpty.remove();
+
+      // collapse previously-open probe entries so the log stays compact
+      termLog.querySelectorAll('.log-entry.open').forEach(el => el.classList.remove('open'));
+
+      const n = probe.matches.length;
+      const hasBody = n > 0;
 
       const entry = document.createElement('div');
-      entry.className = 'log-entry';
+      entry.className = 'log-entry' + (hasBody ? ' open' : '');
 
-      const cmdLine = document.createElement('div');
-      cmdLine.className = 'log-cmd';
+      const head = document.createElement('div');
+      head.className = 'log-head' + (hasBody ? '' : ' no-body');
+
       const promptSpan = document.createElement('span');
       promptSpan.className = 'prompt';
       promptSpan.textContent = '$';
+
       const cmdSpan = document.createElement('span');
+      cmdSpan.className = 'cmd';
       cmdSpan.textContent = probe.cmd;
-      cmdLine.appendChild(promptSpan);
-      cmdLine.appendChild(cmdSpan);
 
-      const resultLine = document.createElement('div');
-      resultLine.className = 'log-result';
-      const n = probe.matches.length;
-      if (n === 0) {
-        resultLine.classList.add('log-count-nil');
-        resultLine.textContent = '→ no matches';
-      } else if (n <= 5) {
-        resultLine.classList.add('log-count-few');
-        resultLine.textContent = `→ ${n} match${n !== 1 ? 'es' : ''}`;
+      const badge = document.createElement('span');
+      badge.className = 'log-badge ' + (n === 0 ? 'nil' : n <= 5 ? 'few' : 'ok');
+      badge.textContent = n === 0 ? 'no matches' : `${n} match${n !== 1 ? 'es' : ''}`;
+
+      head.appendChild(promptSpan);
+      head.appendChild(cmdSpan);
+      head.appendChild(badge);
+
+      if (hasBody) {
+        const chevron = document.createElement('span');
+        chevron.className = 'chevron';
+        chevron.textContent = '▶';
+        head.appendChild(chevron);
+        head.addEventListener('click', () => entry.classList.toggle('open'));
+
+        const body = document.createElement('div');
+        body.className = 'log-body';
+        const words = document.createElement('div');
+        words.className = 'log-words';
+        words.textContent = probe.matches.join('  ');
+        body.appendChild(words);
+        entry.appendChild(head);
+        entry.appendChild(body);
       } else {
-        resultLine.classList.add('log-count-ok');
-        resultLine.textContent = `→ ${n} matches`;
+        entry.appendChild(head);
       }
-
-      entry.appendChild(cmdLine);
-      entry.appendChild(resultLine);
-
-      if (n > 0) {
-        const wordsLine = document.createElement('div');
-        wordsLine.className = 'log-words';
-        wordsLine.textContent = probe.matches.join('  ');
-        entry.appendChild(wordsLine);
-      }
-
-      const divider = document.createElement('div');
-      divider.className = 'log-divider';
 
       termLog.appendChild(entry);
-      termLog.appendChild(divider);
       termLog.scrollTop = termLog.scrollHeight;
     }
 
@@ -1011,29 +1211,10 @@
       toastTimer = setTimeout(() => toast.classList.remove('show'), dur);
     }
 
-    /* ── End screen ────────────────────────────────────────── */
-    function showEnd(session) {
-      const won   = session.status === 'won';
-      const used  = session.guesses.length;
-      const probes = MAX_PROBES - session.probesLeft;
-      const score  = won ? Math.max(0, 100 - probes * 5 - used * 10) : 0;
-
-      document.getElementById('end-emoji').textContent  = won ? '🎯' : '💀';
-      document.getElementById('end-title').textContent  = won ? 'Got it.' : 'Game over.';
-      document.getElementById('end-word').textContent   = session.secret || '?????';
-      document.getElementById('end-stats').textContent  =
-        won
-          ? `${probes} probe${probes !== 1 ? 's' : ''}  ·  ${used} guess${used !== 1 ? 'es' : ''}`
-          : `${session.secret}  —  better luck next time`;
-      document.getElementById('end-score').innerHTML    =
-        won ? `${score} <small>/ 100</small>` : '';
-
-      setTimeout(() => endOverlay.classList.add('show'), won ? 5 * 180 + 600 : 200);
-    }
-
-    /* ── API ───────────────────────────────────────────────── */
+    /* ── API (sends the auth token) ────────────────────────── */
     async function api(path, method = 'GET', body = null) {
       const opts = { method, headers: { 'Content-Type': 'application/json' } };
+      if (token) opts.headers['Authorization'] = 'Bearer ' + token;
       if (body) opts.body = JSON.stringify(body);
       const res = await fetch(path, opts);
       const data = await res.json();
@@ -1041,69 +1222,101 @@
       return data;
     }
 
-    async function startGame() {
-      endOverlay.classList.remove('show');
+    /* ── Terminal log reset ────────────────────────────────── */
+    function resetTerminalLog() {
       termLog.innerHTML = '';
-      const emptyDiv = document.createElement('div');
-      emptyDiv.className = 'log-empty';
-      emptyDiv.id = 'log-empty';
-      emptyDiv.innerHTML =
-        'Run a grep to narrow the field.<br>Then guess the 5-letter word.<br><br>' +
+      logEmpty = document.createElement('div');
+      logEmpty.className = 'log-empty';
+      logEmpty.id = 'log-empty';
+      logEmpty.innerHTML =
+        'grep narrows the word list. Then guess.<br>Probes are unlimited — go nuts.<br><br>' +
         '<span style="color:var(--text-muted)">grep "^[aeiou]"    — starts with vowel<br>' +
         'grep ".*sh$"     — ends in sh<br>' +
-        'grep -v ".*e.*"  — no letter e<br>' +
+        'grep -v "e"      — no letter e<br>' +
         'grep "^..[aeiou]" — vowel at pos 3</span>';
-      termLog.appendChild(emptyDiv);
+      termLog.appendChild(logEmpty);
+    }
 
-      initBoard();
-      initLetterBank();
-      initDots();
-      gameStatus = 'playing';
+    /* ── Timer ─────────────────────────────────────────────── */
+    function fmtTime(ms) {
+      const s = Math.max(0, Math.ceil(ms / 1000));
+      return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    }
+    function tickTimer() {
+      const left = deadline - Date.now();
+      hudTimer.textContent = fmtTime(left);
+      hudTimer.classList.toggle('low', left <= 30000);
+      if (left <= 0 && gameStatus !== 'over') finishRun();
+    }
+    function startTimer() {
+      clearInterval(timerInt);
+      tickTimer();
+      timerInt = setInterval(tickTimer, 250);
+    }
 
+    /* ── HUD ───────────────────────────────────────────────── */
+    function updateHud(run) {
+      hudScore.textContent  = run.score;
+      hudSolved.textContent = run.solved;
+      const n = run.solved + run.failed + run.skipped + 1;
+      wordCounter.textContent = `word #${n}`;
+    }
+
+    /* ── Run lifecycle ─────────────────────────────────────── */
+    async function startRun() {
+      if (!token) { loginOverlay.classList.remove('hidden'); return; }
+      endOverlay.classList.remove('show');
       try {
-        const session = await api('/api/game/new', 'POST');
-        sessionId = session.id;
-        updateState(session);
+        const data = await api('/api/run/start', 'POST');
+        runId = data.run.runId;
+        deadline = Date.now() + data.run.msLeft;
+        gameStatus = 'playing';
+        resetTerminalLog();
+        loadWord(data.word);
+        updateHud(data.run);
+        hud.classList.remove('hidden');
+        document.getElementById('btn-end').classList.remove('hidden');
+        startTimer();
         cmdInput.focus();
       } catch (e) {
-        showToast('Failed to start game. Is server running?', 4000);
+        showToast(e.message || 'Could not start run', 4000);
       }
+    }
+
+    function showReveal(outcome, word, pts) {
+      const tag = document.getElementById('reveal-tag');
+      const wd  = document.getElementById('reveal-word');
+      const pt  = document.getElementById('reveal-pts');
+      tag.className = 'reveal-tag ' + (outcome === 'solved' ? 'ok' : 'miss');
+      tag.textContent = outcome === 'solved' ? 'solved' : (outcome === 'skipped' ? 'skipped' : 'missed');
+      wd.textContent = word;
+      pt.textContent = (outcome === 'solved' && pts) ? `+${pts}` : '';
+      reveal.classList.add('show');
+      setTimeout(() => reveal.classList.remove('show'), 1100);
     }
 
     async function sendProbe(pattern) {
       try {
-        const session = await api(`/api/game/${sessionId}/probe`, 'POST', { pattern });
-        addProbeEntry(session.probe);
-        renderDots(session.probesLeft, session.guessesLeft);
-        probeCount_el.textContent = session.probesLeft;
-        probeCount = MAX_PROBES - session.probesLeft;
+        const data = await api(`/api/run/${runId}/probe`, 'POST', { pattern });
+        addProbeEntry(data.probe);
       } catch (e) {
+        if (/time is up/i.test(e.message)) return finishRun();
         showToast(e.message);
       }
     }
 
     async function sendGuess(word) {
       const rowIndex = guessCount;
+      gameStatus = 'transitioning';
 
-      // lock preview tiles as "filled" so they stay visible during the API call
       for (let c = 0; c < 5; c++) {
         const tile = document.getElementById(`tile-${rowIndex}-${c}`);
         if (tile) { tile.textContent = word[c]; tile.className = 'tile filled'; }
       }
 
+      let data;
       try {
-        const session = await api(`/api/game/${sessionId}/guess`, 'POST', { word });
-        const latestGuess = session.guesses[session.guesses.length - 1];
-        animateGuess(rowIndex, latestGuess.word, latestGuess.colors);
-        setTimeout(() => {
-          renderLetters(session.guesses);
-          renderDots(session.probesLeft, session.guessesLeft);
-          guessCount = session.guesses.length;
-          gameStatus = session.status;
-          currentGuesses = session.guesses;
-          if (session.status !== 'playing') showEnd(session);
-          if (session.status === 'won') animateWin(rowIndex);
-        }, 5 * 180 + 50);
+        data = await api(`/api/run/${runId}/guess`, 'POST', { word });
       } catch (e) {
         for (let c = 0; c < 5; c++) {
           const tile = document.getElementById(`tile-${rowIndex}-${c}`);
@@ -1111,6 +1324,137 @@
         }
         shakeRow(rowIndex);
         showToast(e.message);
+        gameStatus = (e && /time is up/i.test(e.message)) ? 'over' : 'playing';
+        if (gameStatus === 'over') finishRun();
+        return;
+      }
+
+      animateGuess(rowIndex, data.guess.word, data.guess.colors);
+      const settle = 5 * 180 + 50;
+
+      setTimeout(() => {
+        renderLetters(data.word.guesses);
+        renderGuessDots(data.word.guesses.length);
+        guessCount = data.word.guesses.length;
+        currentGuesses = data.word.guesses;
+        updateHud(data.run);
+
+        if (data.outcome === 'solved') animateWin(rowIndex);
+
+        if (!data.ended) { gameStatus = 'playing'; return; }
+
+        // word ended — reveal it, then advance (or end the run)
+        const pts = data.outcome === 'solved' ? 100 + (MAX_GUESSES - data.word.guesses.length) * 20 : 0;
+        const revealDelay = data.outcome === 'solved' ? 600 : 100;
+        setTimeout(() => showReveal(data.outcome, data.lastSecret, pts), revealDelay);
+
+        if (data.run.finished) {
+          setTimeout(finishRun, revealDelay + 700);
+          return;
+        }
+        setTimeout(() => {
+          loadWord(data.next);
+          resetTerminalLog();
+          cmdInput.focus();
+        }, revealDelay + 1150);
+      }, settle);
+    }
+
+    async function skipWord() {
+      if (gameStatus !== 'playing') return;
+      gameStatus = 'transitioning';
+      try {
+        const data = await api(`/api/run/${runId}/skip`, 'POST');
+        updateHud(data.run);
+        showReveal('skipped', data.lastSecret, 0);
+        if (data.run.finished) { setTimeout(finishRun, 800); return; }
+        setTimeout(() => {
+          loadWord(data.next);
+          resetTerminalLog();
+          cmdInput.focus();
+        }, 1150);
+      } catch (e) {
+        if (/time is up/i.test(e.message)) return finishRun();
+        gameStatus = 'playing';
+        showToast(e.message);
+      }
+    }
+
+    let finishing = false;
+    async function finishRun() {
+      if (finishing || gameStatus === 'over') { return; }
+      finishing = true;
+      gameStatus = 'over';
+      clearInterval(timerInt);
+      hudTimer.textContent = '0:00';
+      reveal.classList.remove('show');
+      try {
+        const data = await api(`/api/run/${runId}/finish`, 'POST');
+        renderLeaderboard(data.leaderboard, document.getElementById('lb-list'));
+        renderLeaderboard(data.leaderboard, document.getElementById('end-board'));
+        showRunSummary(data.run);
+      } catch (e) {
+        showToast(e.message);
+      } finally {
+        finishing = false;
+        document.getElementById('btn-end').classList.add('hidden');
+      }
+    }
+
+    function showRunSummary(run) {
+      document.getElementById('end-score').innerHTML  = `${run.score} <small>pts</small>`;
+      document.getElementById('end-stats').textContent =
+        `${run.solved} solved · ${run.failed} failed · ${run.skipped} skipped`;
+      document.getElementById('end-rank').textContent  = run.rank ? `Leaderboard rank #${run.rank}` : '';
+      endOverlay.classList.add('show');
+    }
+
+    /* ── Leaderboard rendering ─────────────────────────────── */
+    function renderLeaderboard(list, container) {
+      container.innerHTML = '';
+      if (!list || !list.length) {
+        const empty = document.createElement('div');
+        empty.className = 'lb-empty';
+        empty.innerHTML = 'No runs yet.<br>Be the first!';
+        container.appendChild(empty);
+        return;
+      }
+      for (const e of list) {
+        const row = document.createElement('div');
+        row.className = 'lb-row' + (e.name === playerName ? ' me' : '');
+        const rank = document.createElement('span');
+        rank.className = 'lb-rank'; rank.textContent = e.rank;
+        const name = document.createElement('span');
+        name.className = 'lb-name'; name.textContent = e.name;
+        const score = document.createElement('span');
+        score.className = 'lb-score'; score.textContent = e.score;
+        row.appendChild(rank); row.appendChild(name); row.appendChild(score);
+        container.appendChild(row);
+      }
+    }
+
+    async function loadLeaderboard() {
+      try {
+        const data = await api('/api/leaderboard');
+        renderLeaderboard(data.leaderboard, document.getElementById('lb-list'));
+      } catch (_) {}
+    }
+
+    /* ── Login (name-only) ─────────────────────────────────── */
+    const nameInput = document.getElementById('name-input');
+    async function doLogin() {
+      const name = nameInput.value.trim();
+      if (!name) { nameInput.focus(); return; }
+      try {
+        const data = await api('/api/auth', 'POST', { name });
+        token = data.token;
+        playerName = data.name;
+        document.getElementById('hud-name').textContent = playerName;
+        loginOverlay.classList.add('hidden');
+        await loadLeaderboard();
+        startRun();
+      } catch (e) {
+        showToast(e.message || 'Login failed', 3500);
       }
     }
 
@@ -1149,8 +1493,8 @@
       if (e.key !== 'Enter') return;
       const val = cmdInput.value.trim();
       if (!val) return;
-      if (gameStatus !== 'playing') { showToast('Start a new game first'); return; }
-      if (!sessionId) { showToast('No active game'); return; }
+      if (gameStatus === 'over' || !runId) { showToast('Start a run first'); return; }
+      if (gameStatus !== 'playing') return;  // mid-transition, ignore
 
       cmdInput.value = '';
       inputHint.textContent = '';
@@ -1196,12 +1540,20 @@
     }
 
     /* ── Buttons ───────────────────────────────────────────── */
-    document.getElementById('btn-new').addEventListener('click', startGame);
-    document.getElementById('btn-new-end').addEventListener('click', startGame);
+    document.getElementById('btn-new').addEventListener('click', startRun);
+    document.getElementById('btn-new-end').addEventListener('click', startRun);
+    document.getElementById('btn-end').addEventListener('click', () => {
+      if (gameStatus !== 'over') finishRun();
+    });
+    document.getElementById('btn-skip').addEventListener('click', skipWord);
+    document.getElementById('login-btn').addEventListener('click', doLogin);
+    nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
 
     /* ── Keyboard shortcut ─────────────────────────────────── */
     document.addEventListener('keydown', (e) => {
-      if (e.target === cmdInput) return;
+      if (e.target === cmdInput || e.target === nameInput) return;
+      if (gameStatus !== 'playing') return;
+      if (!loginOverlay.classList.contains('hidden')) return;
       if (/^[a-z]$/i.test(e.key) && !e.ctrlKey && !e.metaKey) {
         cmdInput.focus();
       }
@@ -1434,19 +1786,32 @@
 
     function renderSuggestions(suggestions) {
       if (logEmpty && logEmpty.parentNode) logEmpty.remove();
+      termLog.querySelectorAll('.log-entry.open').forEach(el => el.classList.remove('open'));
 
       const entry = document.createElement('div');
-      entry.className = 'log-entry';
+      entry.className = 'log-entry open';
 
       const head = document.createElement('div');
-      head.className = 'suggest-head';
-      head.textContent = '💡 grep for what you know so far';
-      entry.appendChild(head);
+      head.className = 'log-head';
+      const label = document.createElement('span');
+      label.className = 'cmd';
+      label.textContent = '💡 grep for what you know so far';
+      const chevron = document.createElement('span');
+      chevron.className = 'chevron';
+      chevron.textContent = '▶';
+      head.appendChild(label);
+      head.appendChild(chevron);
+      head.addEventListener('click', () => entry.classList.toggle('open'));
+
+      const body = document.createElement('div');
+      body.className = 'log-body';
+      const inner = document.createElement('div');
+      inner.className = 'suggest-body';
 
       const note = document.createElement('div');
       note.className = 'suggest-note';
       note.textContent = 'each clue becomes one grep · click to load it · these are just tips, running one still costs a probe';
-      entry.appendChild(note);
+      inner.appendChild(note);
 
       for (const s of suggestions) {
         const row = document.createElement('div');
@@ -1460,13 +1825,13 @@
         why.textContent = s.why;
         row.appendChild(chip);
         row.appendChild(why);
-        entry.appendChild(row);
+        inner.appendChild(row);
       }
 
-      const divider = document.createElement('div');
-      divider.className = 'log-divider';
+      body.appendChild(inner);
+      entry.appendChild(head);
+      entry.appendChild(body);
       termLog.appendChild(entry);
-      termLog.appendChild(divider);
       termLog.scrollTop = termLog.scrollHeight;
     }
 
@@ -1479,7 +1844,11 @@
     });
 
     /* ── Boot ──────────────────────────────────────────────── */
-    startGame();
+    initBoard();
+    initLetterBank();
+    initDots();
+    loadLeaderboard();
+    nameInput.focus();
   </script>
 </body>
 </html>
