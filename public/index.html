@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>grep WORDLE</title>
+  <style>
+    /* ─── Palette ─────────────────────────────────────────────── */
+    :root {
+      --ground:       #0d1b2a;
+      --surface:      #12253a;
+      --surface-2:    #1a3049;
+      --border:       #1e3a54;
+      --border-hi:    #2d5070;
+      --text:         #ddeeff;
+      --text-dim:     #8ab8d8;
+      --text-muted:   #5a84a0;
+      --cyan:         #38bdf8;
+      --cyan-dim:     rgba(56,189,248,0.15);
+      --green:        #10d9a0;
+      --green-dim:    rgba(16,217,160,0.18);
+      --yellow:       #f59e0b;
+      --yellow-dim:   rgba(245,158,11,0.18);
+      --absent:       #1a3049;
+      --absent-text:  #6a94b0;
+      --grid-line:    rgba(56,189,248,0.04);
+      --radius:       3px;
+    }
+
+    /* ─── Reset & base ───────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      background-color: var(--ground);
+      background-image:
+        linear-gradient(var(--grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+      background-size: 28px 28px;
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ─── Header ─────────────────────────────────────────────── */
+    header {
+      width: 100%;
+      max-width: 1060px;
+      padding: 20px 24px 0;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      flex-direction: column;
+      line-height: 1;
+    }
+
+    .logo-grep {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px;
+      letter-spacing: 0.25em;
+      color: var(--cyan);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .logo-wordle {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--text);
+    }
+
+    .tagline {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 0.04em;
+      margin-top: 6px;
+    }
+
+    .btn-new {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      color: var(--cyan);
+      background: var(--cyan-dim);
+      border: 1px solid var(--cyan);
+      border-radius: var(--radius);
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      text-transform: lowercase;
+    }
+
+    .btn-new:hover { background: rgba(56,189,248,0.25); }
+    .btn-new:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+    /* ─── Main layout ────────────────────────────────────────── */
+    main {
+      width: 100%;
+      max-width: 1060px;
+      padding: 20px 24px 24px;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 16px;
+      flex: 1;
+    }
+
+    /* ─── Board panel ────────────────────────────────────────── */
+    .board-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .panel-label {
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    /* Wordle grid */
+    .wordle-board {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .board-row {
+      display: flex;
+      gap: 5px;
+    }
+
+    .tile {
+      width: 56px;
+      height: 56px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 22px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text);
+      background: transparent;
+      transition: border-color 0.1s;
+      position: relative;
+      transform-origin: center center;
+    }
+
+    .tile.preview {
+      border-color: var(--border-hi);
+      color: var(--text-dim);
+    }
+
+    .tile.filled {
+      border-color: var(--border-hi);
+      color: var(--text);
+    }
+
+    .tile.green  { background: var(--green);  border-color: var(--green);  color: #001a12; }
+    .tile.yellow { background: var(--yellow); border-color: var(--yellow); color: #1a0e00; }
+    .tile.absent { background: var(--absent); border-color: var(--absent); color: var(--absent-text); }
+
+    @keyframes tile-pop {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.08); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes row-shake {
+      0%, 100% { transform: translateX(0); }
+      20%       { transform: translateX(-6px); }
+      40%       { transform: translateX(6px); }
+      60%       { transform: translateX(-4px); }
+      80%       { transform: translateX(4px); }
+    }
+
+    @keyframes tile-win {
+      0%, 100% { transform: translateY(0); }
+      50%      { transform: translateY(-10px); }
+    }
+
+    .tile.animate-pop { animation: tile-pop 0.12s ease; }
+    .row-shake        { animation: row-shake 0.4s ease; }
+
+    /* Letter bank */
+    .letter-bank {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      align-items: center;
+    }
+
+    .key-row {
+      display: flex;
+      gap: 4px;
+    }
+
+    .key {
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      background: var(--surface);
+      text-transform: uppercase;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+
+    .key.green  { background: var(--green);  border-color: var(--green);  color: #001a12; }
+    .key.yellow { background: var(--yellow); border-color: var(--yellow); color: #1a0e00; }
+    .key.absent { background: var(--text-muted); border-color: var(--text-muted); color: var(--surface); }
+
+    /* ─── Terminal panel ─────────────────────────────────────── */
+    .terminal-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 520px;
+    }
+
+    .terminal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-2);
+      flex-shrink: 0;
+    }
+
+    .terminal-head-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-red    { background: #ff5f57; }
+    .dot-yellow { background: #febc2e; }
+    .dot-green  { background: #28c840; }
+
+    .terminal-title {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-left: 4px;
+    }
+
+    .probe-counter {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .probe-counter span { color: var(--cyan); }
+
+    /* Terminal log */
+    .terminal-log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 0;
+      scroll-behavior: smooth;
+    }
+
+    .terminal-log::-webkit-scrollbar { width: 4px; }
+    .terminal-log::-webkit-scrollbar-track { background: transparent; }
+    .terminal-log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .log-empty {
+      color: var(--text-dim);
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .log-entry { display: flex; flex-direction: column; gap: 5px; }
+
+    .log-cmd {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 13px;
+      color: var(--text);
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+    }
+
+    .log-cmd .prompt { color: var(--cyan); flex-shrink: 0; }
+
+    .log-result {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px;
+      padding-left: 20px;
+      line-height: 1.6;
+    }
+
+    .log-count-ok  { color: var(--green);  }
+    .log-count-few { color: var(--yellow); }
+    .log-count-nil { color: #f87171; }
+
+    .log-words {
+      color: var(--text-dim);
+      word-break: break-all;
+      padding-left: 20px;
+      font-size: 11px;
+    }
+
+    .log-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 2px 0;
+    }
+
+    /* Terminal input */
+    .terminal-input-area {
+      border-top: 1px solid var(--border);
+      padding: 12px 16px;
+      flex-shrink: 0;
+    }
+
+    .terminal-prompt {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .prompt-sym {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 14px;
+      color: var(--cyan);
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    #cmd-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 14px;
+      color: var(--text);
+      caret-color: var(--cyan);
+    }
+
+    #cmd-input::placeholder { color: var(--text-muted); }
+
+    .input-hint {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 6px;
+      padding-left: 20px;
+      min-height: 14px;
+      transition: color 0.15s;
+    }
+
+    .input-hint.hint-grep { color: var(--cyan); }
+    .input-hint.hint-word { color: var(--green); }
+
+    /* ─── Status bar ─────────────────────────────────────────── */
+    .status-bar {
+      width: 100%;
+      max-width: 1060px;
+      padding: 0 24px 20px;
+      display: flex;
+      gap: 24px;
+      align-items: center;
+    }
+
+    .status-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-label {
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    .status-dots {
+      display: flex;
+      gap: 4px;
+    }
+
+    .sdot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--border-hi);
+      transition: background 0.2s;
+    }
+
+    .sdot.used { background: var(--text-muted); }
+    .sdot.probe-used { background: var(--cyan); opacity: 0.35; }
+    .sdot.probe-active { background: var(--cyan); }
+    .sdot.guess-active { background: var(--green); }
+    .sdot.guess-used { background: var(--text-muted); opacity: 0.4; }
+
+    /* ─── Message toast ──────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-8px);
+      background: var(--text);
+      color: var(--ground);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 20px;
+      border-radius: var(--radius);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 100;
+      white-space: nowrap;
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ─── End overlay ────────────────────────────────────────── */
+    #end-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(13,27,42,0.88);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    #end-overlay.show { opacity: 1; pointer-events: all; }
+
+    .end-card {
+      background: var(--surface-2);
+      border: 1px solid var(--border-hi);
+      border-radius: 6px;
+      padding: 40px 48px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 360px;
+    }
+
+    .end-emoji { font-size: 48px; line-height: 1; }
+
+    .end-title {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .end-word {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      color: var(--green);
+      text-transform: uppercase;
+    }
+
+    .end-stats {
+      font-size: 12px;
+      color: var(--text-dim);
+      letter-spacing: 0.05em;
+    }
+
+    .end-score {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 36px;
+      font-weight: 700;
+      color: var(--cyan);
+    }
+
+    .end-score small {
+      font-size: 14px;
+      color: var(--text-dim);
+    }
+
+    /* ─── Responsive ─────────────────────────────────────────── */
+    @media (max-width: 720px) {
+      main {
+        grid-template-columns: 1fr;
+        padding: 16px;
+      }
+
+      .terminal-panel { min-height: 360px; }
+      .tile { width: 48px; height: 48px; font-size: 20px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .tile, .tile.animate-pop, .row-shake { animation: none; transition: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">
+      <div class="logo-grep">$ grep</div>
+      <div class="logo-wordle">WORDLE</div>
+      <div class="tagline">Hunt with patterns. Guess with knowledge.</div>
+    </div>
+    <button class="btn-new" id="btn-new">new game()</button>
+  </header>
+
+  <main>
+    <!-- Left: board + keys -->
+    <div class="board-panel">
+      <div>
+        <div class="panel-label">Guesses</div>
+        <div class="wordle-board" id="board"></div>
+      </div>
+      <div>
+        <div class="panel-label">Letters</div>
+        <div class="letter-bank" id="letter-bank"></div>
+      </div>
+    </div>
+
+    <!-- Right: terminal -->
+    <div class="terminal-panel">
+      <div class="terminal-head">
+        <div class="terminal-head-left">
+          <div class="dot dot-red"></div>
+          <div class="dot dot-yellow"></div>
+          <div class="dot dot-green"></div>
+          <span class="terminal-title">probe terminal</span>
+        </div>
+        <div class="probe-counter">probes: <span id="probe-count">8</span>/8</div>
+      </div>
+
+      <div class="terminal-log" id="terminal-log">
+        <div class="log-empty" id="log-empty">
+          Run a grep to narrow the field.<br>
+          Then guess the 5-letter word.<br><br>
+          <span style="color:var(--text-muted)">grep "^[aeiou]"    — starts with vowel<br>
+          grep ".*sh$"     — ends in sh<br>
+          grep -v ".*e.*"  — no letter e<br>
+          grep "^..[aeiou]" — vowel at pos 3</span>
+        </div>
+      </div>
+
+      <div class="terminal-input-area">
+        <div class="terminal-prompt">
+          <span class="prompt-sym">$</span>
+          <input
+            type="text"
+            id="cmd-input"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            placeholder='grep "pattern"  or  word'
+          >
+        </div>
+        <div class="input-hint" id="input-hint"></div>
+      </div>
+    </div>
+  </main>
+
+  <div class="status-bar">
+    <div class="status-group">
+      <span class="status-label">Probes</span>
+      <div class="status-dots" id="probe-dots"></div>
+    </div>
+    <div class="status-group">
+      <span class="status-label">Guesses</span>
+      <div class="status-dots" id="guess-dots"></div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <div id="end-overlay">
+    <div class="end-card">
+      <div class="end-emoji" id="end-emoji"></div>
+      <div class="end-title" id="end-title"></div>
+      <div class="end-word" id="end-word"></div>
+      <div class="end-stats" id="end-stats"></div>
+      <div class="end-score" id="end-score"></div>
+      <button class="btn-new" id="btn-new-end" style="margin-top:8px;font-size:14px;padding:12px 24px;">
+        play again
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const MAX_GUESSES = 6;
+    const MAX_PROBES  = 8;
+    const KEY_ROWS    = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
+
+    let sessionId  = null;
+    let gameStatus = 'playing';
+    let guessCount = 0;
+    let probeCount = 0;
+
+    /* ── DOM refs ──────────────────────────────────────────── */
+    const board      = document.getElementById('board');
+    const letterBank = document.getElementById('letter-bank');
+    const termLog    = document.getElementById('terminal-log');
+    const logEmpty   = document.getElementById('log-empty');
+    const cmdInput   = document.getElementById('cmd-input');
+    const inputHint  = document.getElementById('input-hint');
+    const probeDots  = document.getElementById('probe-dots');
+    const guessDots  = document.getElementById('guess-dots');
+    const probeCount_el = document.getElementById('probe-count');
+    const toast      = document.getElementById('toast');
+    const endOverlay = document.getElementById('end-overlay');
+
+    /* ── Board init ────────────────────────────────────────── */
+    function initBoard() {
+      board.innerHTML = '';
+      for (let r = 0; r < MAX_GUESSES; r++) {
+        const row = document.createElement('div');
+        row.className = 'board-row';
+        row.id = `row-${r}`;
+        for (let c = 0; c < 5; c++) {
+          const tile = document.createElement('div');
+          tile.className = 'tile';
+          tile.id = `tile-${r}-${c}`;
+          row.appendChild(tile);
+        }
+        board.appendChild(row);
+      }
+    }
+
+    function initLetterBank() {
+      letterBank.innerHTML = '';
+      for (const rowStr of KEY_ROWS) {
+        const row = document.createElement('div');
+        row.className = 'key-row';
+        for (const ch of rowStr) {
+          const key = document.createElement('div');
+          key.className = 'key';
+          key.id = `key-${ch}`;
+          key.textContent = ch;
+          row.appendChild(key);
+        }
+        letterBank.appendChild(row);
+      }
+    }
+
+    function initDots() {
+      probeDots.innerHTML = '';
+      guessDots.innerHTML = '';
+      for (let i = 0; i < MAX_PROBES; i++) {
+        const d = document.createElement('div');
+        d.className = 'sdot probe-active';
+        d.id = `pdot-${i}`;
+        probeDots.appendChild(d);
+      }
+      for (let i = 0; i < MAX_GUESSES; i++) {
+        const d = document.createElement('div');
+        d.className = 'sdot guess-active';
+        d.id = `gdot-${i}`;
+        guessDots.appendChild(d);
+      }
+    }
+
+    /* ── State rendering ───────────────────────────────────── */
+    function renderGuesses(guesses) {
+      for (let r = 0; r < guesses.length; r++) {
+        const { word, colors } = guesses[r];
+        for (let c = 0; c < 5; c++) {
+          const tile = document.getElementById(`tile-${r}-${c}`);
+          tile.textContent = word[c];
+          tile.className = 'tile ' + colors[c];
+        }
+      }
+    }
+
+    function animateGuess(rowIndex, word, colors) {
+      const delay = 180; // ms per tile
+      for (let c = 0; c < 5; c++) {
+        const tile = document.getElementById(`tile-${rowIndex}-${c}`);
+        ((col, idx) => {
+          setTimeout(() => {
+            tile.style.transition = 'transform 0.18s ease-in';
+            tile.style.transform = 'scaleY(0)';
+            setTimeout(() => {
+              tile.className = 'tile ' + col;
+              tile.style.transition = 'transform 0.18s ease-out';
+              tile.style.transform = 'scaleY(1)';
+            }, 180);
+          }, idx * delay);
+        })(colors[c], c);
+      }
+    }
+
+    function animateWin(rowIndex) {
+      for (let c = 0; c < 5; c++) {
+        const tile = document.getElementById(`tile-${rowIndex}-${c}`);
+        setTimeout(() => {
+          tile.style.animation = `tile-win 0.4s ease ${c * 80}ms`;
+          tile.addEventListener('animationend', () => { tile.style.animation = ''; }, { once: true });
+        }, 5 * 180 + 100);
+      }
+    }
+
+    function shakeRow(rowIndex) {
+      const row = document.getElementById(`row-${rowIndex}`);
+      row.classList.add('row-shake');
+      row.addEventListener('animationend', () => row.classList.remove('row-shake'), { once: true });
+    }
+
+    function renderLetters(guesses) {
+      const priority = { green: 3, yellow: 2, absent: 1 };
+      const state = {};
+      for (const { word, colors } of guesses) {
+        for (let i = 0; i < 5; i++) {
+          const ch = word[i];
+          const col = colors[i];
+          if (!state[ch] || priority[col] > priority[state[ch]]) state[ch] = col;
+        }
+      }
+      for (const [ch, col] of Object.entries(state)) {
+        const key = document.getElementById(`key-${ch}`);
+        if (key) { key.className = 'key ' + col; }
+      }
+    }
+
+    function renderDots(probesLeft, guessesLeft) {
+      for (let i = 0; i < MAX_PROBES; i++) {
+        const d = document.getElementById(`pdot-${i}`);
+        if (d) d.className = 'sdot ' + (i < (MAX_PROBES - probesLeft) ? 'probe-used' : 'probe-active');
+      }
+      for (let i = 0; i < MAX_GUESSES; i++) {
+        const d = document.getElementById(`gdot-${i}`);
+        if (d) d.className = 'sdot ' + (i < (MAX_GUESSES - guessesLeft) ? 'guess-used' : 'guess-active');
+      }
+      probeCount_el.textContent = probesLeft;
+    }
+
+    function updateState(session) {
+      renderGuesses(session.guesses);
+      renderLetters(session.guesses);
+      renderDots(session.probesLeft, session.guessesLeft);
+      guessCount = session.guesses.length;
+      probeCount = MAX_PROBES - session.probesLeft;
+      gameStatus = session.status;
+    }
+
+    /* ── Terminal log ──────────────────────────────────────── */
+    function addProbeEntry(probe) {
+      if (logEmpty) logEmpty.remove();
+
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+
+      const cmdLine = document.createElement('div');
+      cmdLine.className = 'log-cmd';
+      const promptSpan = document.createElement('span');
+      promptSpan.className = 'prompt';
+      promptSpan.textContent = '$';
+      const cmdSpan = document.createElement('span');
+      cmdSpan.textContent = probe.cmd;
+      cmdLine.appendChild(promptSpan);
+      cmdLine.appendChild(cmdSpan);
+
+      const resultLine = document.createElement('div');
+      resultLine.className = 'log-result';
+      const n = probe.matches.length;
+      if (n === 0) {
+        resultLine.classList.add('log-count-nil');
+        resultLine.textContent = '→ no matches';
+      } else if (n <= 5) {
+        resultLine.classList.add('log-count-few');
+        resultLine.textContent = `→ ${n} match${n !== 1 ? 'es' : ''}`;
+      } else {
+        resultLine.classList.add('log-count-ok');
+        resultLine.textContent = `→ ${n} matches`;
+      }
+
+      entry.appendChild(cmdLine);
+      entry.appendChild(resultLine);
+
+      if (n > 0) {
+        const wordsLine = document.createElement('div');
+        wordsLine.className = 'log-words';
+        wordsLine.textContent = probe.matches.join('  ');
+        entry.appendChild(wordsLine);
+      }
+
+      const divider = document.createElement('div');
+      divider.className = 'log-divider';
+
+      termLog.appendChild(entry);
+      termLog.appendChild(divider);
+      termLog.scrollTop = termLog.scrollHeight;
+    }
+
+    /* ── Toast ─────────────────────────────────────────────── */
+    let toastTimer;
+    function showToast(msg, dur = 2000) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), dur);
+    }
+
+    /* ── End screen ────────────────────────────────────────── */
+    function showEnd(session) {
+      const won   = session.status === 'won';
+      const used  = session.guesses.length;
+      const probes = MAX_PROBES - session.probesLeft;
+      const score  = won ? Math.max(0, 100 - probes * 5 - used * 10) : 0;
+
+      document.getElementById('end-emoji').textContent  = won ? '🎯' : '💀';
+      document.getElementById('end-title').textContent  = won ? 'Got it.' : 'Game over.';
+      document.getElementById('end-word').textContent   = session.secret || '?????';
+      document.getElementById('end-stats').textContent  =
+        won
+          ? `${probes} probe${probes !== 1 ? 's' : ''}  ·  ${used} guess${used !== 1 ? 'es' : ''}`
+          : `${session.secret}  —  better luck next time`;
+      document.getElementById('end-score').innerHTML    =
+        won ? `${score} <small>/ 100</small>` : '';
+
+      setTimeout(() => endOverlay.classList.add('show'), won ? 5 * 180 + 600 : 200);
+    }
+
+    /* ── API ───────────────────────────────────────────────── */
+    async function api(path, method = 'GET', body = null) {
+      const opts = { method, headers: { 'Content-Type': 'application/json' } };
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch(path, opts);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Request failed');
+      return data;
+    }
+
+    async function startGame() {
+      endOverlay.classList.remove('show');
+      termLog.innerHTML = '';
+      const emptyDiv = document.createElement('div');
+      emptyDiv.className = 'log-empty';
+      emptyDiv.id = 'log-empty';
+      emptyDiv.innerHTML =
+        'Run a grep to narrow the field.<br>Then guess the 5-letter word.<br><br>' +
+        '<span style="color:var(--text-muted)">grep "^[aeiou]"    — starts with vowel<br>' +
+        'grep ".*sh$"     — ends in sh<br>' +
+        'grep -v ".*e.*"  — no letter e<br>' +
+        'grep "^..[aeiou]" — vowel at pos 3</span>';
+      termLog.appendChild(emptyDiv);
+
+      initBoard();
+      initLetterBank();
+      initDots();
+      gameStatus = 'playing';
+
+      try {
+        const session = await api('/api/game/new', 'POST');
+        sessionId = session.id;
+        updateState(session);
+        cmdInput.focus();
+      } catch (e) {
+        showToast('Failed to start game. Is server running?', 4000);
+      }
+    }
+
+    async function sendProbe(pattern) {
+      try {
+        const session = await api(`/api/game/${sessionId}/probe`, 'POST', { pattern });
+        addProbeEntry(session.probe);
+        renderDots(session.probesLeft, session.guessesLeft);
+        probeCount_el.textContent = session.probesLeft;
+        probeCount = MAX_PROBES - session.probesLeft;
+      } catch (e) {
+        showToast(e.message);
+      }
+    }
+
+    async function sendGuess(word) {
+      const rowIndex = guessCount;
+
+      // lock preview tiles as "filled" so they stay visible during the API call
+      for (let c = 0; c < 5; c++) {
+        const tile = document.getElementById(`tile-${rowIndex}-${c}`);
+        if (tile) { tile.textContent = word[c]; tile.className = 'tile filled'; }
+      }
+
+      try {
+        const session = await api(`/api/game/${sessionId}/guess`, 'POST', { word });
+        const latestGuess = session.guesses[session.guesses.length - 1];
+        animateGuess(rowIndex, latestGuess.word, latestGuess.colors);
+        setTimeout(() => {
+          renderLetters(session.guesses);
+          renderDots(session.probesLeft, session.guessesLeft);
+          guessCount = session.guesses.length;
+          gameStatus = session.status;
+          if (session.status !== 'playing') showEnd(session);
+          if (session.status === 'won') animateWin(rowIndex);
+        }, 5 * 180 + 50);
+      } catch (e) {
+        for (let c = 0; c < 5; c++) {
+          const tile = document.getElementById(`tile-${rowIndex}-${c}`);
+          if (tile) { tile.textContent = ''; tile.className = 'tile'; }
+        }
+        shakeRow(rowIndex);
+        showToast(e.message);
+      }
+    }
+
+    /* ── Input handling ────────────────────────────────────── */
+    cmdInput.addEventListener('input', () => {
+      const val = cmdInput.value.trim();
+      if (!val) {
+        inputHint.textContent = '';
+        inputHint.className = 'input-hint';
+        clearPreview();
+        return;
+      }
+
+      if (val.startsWith('grep')) {
+        inputHint.textContent = 'probe — press Enter to run grep';
+        inputHint.className = 'input-hint hint-grep';
+        clearPreview();
+      } else if (/^[a-z]{1,5}$/i.test(val)) {
+        inputHint.textContent = val.length === 5
+          ? 'guess — press Enter to submit'
+          : `${5 - val.length} more letter${5 - val.length !== 1 ? 's' : ''}`;
+        inputHint.className = 'input-hint hint-word';
+        previewWord(val.toLowerCase());
+      } else {
+        inputHint.textContent = 'type grep "pattern" or a 5-letter word';
+        inputHint.className = 'input-hint';
+        clearPreview();
+      }
+    });
+
+    cmdInput.addEventListener('keydown', async (e) => {
+      if (e.key !== 'Enter') return;
+      const val = cmdInput.value.trim();
+      if (!val) return;
+      if (gameStatus !== 'playing') { showToast('Start a new game first'); return; }
+      if (!sessionId) { showToast('No active game'); return; }
+
+      cmdInput.value = '';
+      inputHint.textContent = '';
+      inputHint.className = 'input-hint';
+      clearPreview();
+
+      if (val.startsWith('grep')) {
+        await sendProbe(val);
+      } else if (/^[a-z]{5}$/i.test(val)) {
+        await sendGuess(val.toLowerCase());
+      } else if (/^[a-z]{1,4}$/i.test(val)) {
+        showToast(`"${val}" is ${val.length} letters — need 5`);
+      } else {
+        showToast('Type grep "pattern" or a 5-letter word');
+      }
+    });
+
+    function previewWord(word) {
+      const rowIndex = guessCount;
+      for (let c = 0; c < 5; c++) {
+        const tile = document.getElementById(`tile-${rowIndex}-${c}`);
+        if (!tile) return;
+        if (c < word.length) {
+          tile.textContent = word[c];
+          tile.className = 'tile preview';
+        } else {
+          tile.textContent = '';
+          tile.className = 'tile';
+        }
+      }
+    }
+
+    function clearPreview() {
+      const rowIndex = guessCount;
+      for (let c = 0; c < 5; c++) {
+        const tile = document.getElementById(`tile-${rowIndex}-${c}`);
+        if (tile && tile.classList.contains('preview')) {
+          tile.textContent = '';
+          tile.className = 'tile';
+        }
+      }
+    }
+
+    /* ── Buttons ───────────────────────────────────────────── */
+    document.getElementById('btn-new').addEventListener('click', startGame);
+    document.getElementById('btn-new-end').addEventListener('click', startGame);
+
+    /* ── Keyboard shortcut ─────────────────────────────────── */
+    document.addEventListener('keydown', (e) => {
+      if (e.target === cmdInput) return;
+      if (/^[a-z]$/i.test(e.key) && !e.ctrlKey && !e.metaKey) {
+        cmdInput.focus();
+      }
+    });
+
+    /* ── Boot ──────────────────────────────────────────────── */
+    startGame();
+  </script>
+</body>
+</html>
